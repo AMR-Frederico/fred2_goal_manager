@@ -23,7 +23,7 @@ from rcl_interfaces.srv import GetParameters
 from math import hypot
 
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, PoseWithCovarianceStamped
 from std_msgs.msg import Bool, Int16
 
 # Parameters file (yaml)
@@ -32,6 +32,7 @@ node_group = 'goal_reached'
 
 
 debug_mode = '--debug' in sys.argv
+
 
 
 
@@ -50,6 +51,16 @@ class goal_reached(Node):
     mission_completed = Bool()
     mission_completed.data = False
 
+
+    sinalization_msg = Bool()
+
+    # niveis de precisão dos ghost goals
+    HIGH_ACCURACY = 0.15 
+    NORMAL_ACCURACY = 0.30
+    LOW_ACCURACY = 0.60
+
+    waypoint_goal = False
+    accuracy_level = NORMAL_ACCURACY
 
 
     # starts with randon value 
@@ -123,7 +134,10 @@ class goal_reached(Node):
                                                           'goal/mission_completed', 
                                                           qos_profile)
 
-        self.goal
+        self.led_on = self.create_publisher(Bool, 
+                                            'goal/sinalization', 
+                                            qos_profile)
+
 
 
         self.load_params(node_path, node_group)
@@ -146,6 +160,8 @@ class goal_reached(Node):
 
         if param.name == 'debug': 
             self.DEBUG = param.value
+
+
     
 
 
@@ -177,6 +193,7 @@ class goal_reached(Node):
         
         self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerence').value
         self.DEBUG = self.get_parameter('debug').value
+
 
 
         # Get global params 
@@ -225,14 +242,33 @@ class goal_reached(Node):
         self.robot.position.x = odom_msg.pose.pose.position.x 
         self.robot.position.y = odom_msg.pose.pose.position.y 
         self.robot.orientation.z = odom_msg.pose.pose.orientation.z 
-    
+
 
 
     def goalCurrent_callback(self, goal_msg): 
         
         self.goal.position.x = goal_msg.pose.position.x 
-        self.goal.position.y = goal_msg.pose.position.y 
+        self.goal.position.y = goal_msg.pose.position.y
 
+        if goal_msg.pose.orientation.z == 1.0: 
+
+            self.accuracy_level = self.LOW_ACCURACY
+            self.waypoint_goal = False
+
+        
+        elif goal_msg.pose.orientation.z == 2.0: 
+
+            self.accuracy_level = self.NORMAL_ACCURACY
+            self.waypoint_goal = False
+
+        elif goal_msg.pose.orientation.z == 3.0: 
+
+            self.accuracy_level = self.HIGH_ACCURACY
+            self.waypoint_goal = False
+
+        else: 
+
+            self.waypoint_goal = True
 
 
     def robot_state_callback(self, robot_state): 
@@ -254,29 +290,56 @@ class goal_reached(Node):
 
         linear_error = hypot(dx, dy)
 
-        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and not self.last_goal: 
-            
-            self.robot_in_goal.data = True
-
-            self.get_logger().info('Goal Reached!!!!')
+        if self.waypoint_goal: 
 
 
+            if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and not self.last_goal: 
+                
+                self.robot_in_goal.data = True
 
-        elif (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and self.last_goal: 
+                self.get_logger().warn('Goal Reached!!!!')
 
-            
-            
-            self.mission_completed.data = True
+                self.sinalization_msg.data = True
+                self.led_on.publish(self.sinalization_msg)
 
-            self.get_logger().info('Mission Completed !!!!')
-            
 
+            elif (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and self.last_goal: 
+
+                
+                
+                self.mission_completed.data = True
+
+                self.get_logger().info('Mission Completed !!!!')
+                
+
+            else: 
+
+                
+                self.robot_in_goal.data = False
+
+                self.mission_completed.data = False
+
+                self.sinalization_msg.data = False
+        
+        
         else: 
-            
-            self.robot_in_goal.data = False
 
-            self.mission_completed.data = False
-            
+            self.sinalization_msg.data = False
+
+            if (linear_error < self.accuracy_level) and self.robot_state == self.ROBOT_AUTONOMOUS and not self.last_goal: 
+                
+                self.robot_in_goal.data = True
+
+                self.get_logger().info('Goal Reached!!!!')
+
+
+
+            else: 
+                
+                self.robot_in_goal.data = False
+
+                self.mission_completed.data = False
+
 
 
 
@@ -284,9 +347,12 @@ class goal_reached(Node):
 
         self.goalReached_pub.publish(self.robot_in_goal)
 
+        self.led_on.publish(self.sinalization_msg)
+
 
 
         if debug_mode or self.DEBUG: 
+            self.get_logger().info(f'Ghost goal: {not self.waypoint_goal} | Accurancy level: {self.accuracy_level}')
             self.get_logger().info(f'Goal X: {self.goal.position.x} | Goal Y: {self.goal.position.y} ')
             self.get_logger().info(f'Delta X: {dx} | Delta Y: {dy}')
             self.get_logger().info(f'Linear error: {linear_error} | Tolerance: {self.ROBOT_IN_GOAL_TOLERANCE} | Robo in goal: {self.robot_in_goal.data}\n')
