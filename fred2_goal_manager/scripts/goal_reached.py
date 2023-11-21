@@ -143,6 +143,9 @@ class goal_reached(Node):
 
         if param.name == 'robot_in_goal_tolerence':
             self.ROBOT_IN_GOAL_TOLERANCE = param.value
+
+        if param.name == 'debug': 
+            self.DEBUG = param.value
     
 
 
@@ -173,7 +176,7 @@ class goal_reached(Node):
     def get_params(self):
         
         self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerence').value
-
+        self.DEBUG = self.get_parameter('debug').value
 
 
         # Get global params 
@@ -283,7 +286,7 @@ class goal_reached(Node):
 
 
 
-        if debug_mode: 
+        if debug_mode or self.DEBUG: 
             self.get_logger().info(f'Goal X: {self.goal.position.x} | Goal Y: {self.goal.position.y} ')
             self.get_logger().info(f'Delta X: {dx} | Delta Y: {dy}')
             self.get_logger().info(f'Linear error: {linear_error} | Tolerance: {self.ROBOT_IN_GOAL_TOLERANCE} | Robo in goal: {self.robot_in_goal.data}\n')

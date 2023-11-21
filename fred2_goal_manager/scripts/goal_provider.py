@@ -147,6 +147,8 @@ class goal_provider(Node):
                 self.FRAME_ID = param.value
                 self.get_logger().info(f"Updated FRAME_ID: {self.FRAME_ID}")
 
+
+
         return SetParametersResult(successful=True)
 
 
