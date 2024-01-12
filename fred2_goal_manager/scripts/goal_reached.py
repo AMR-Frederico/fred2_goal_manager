@@ -7,6 +7,7 @@ from rclpy.node import Node
 #!/usr/bin/env python3
 
 import os
+import sys
 import yaml
 import rclpy
 import threading
@@ -27,6 +28,8 @@ node_path = '~/ros2_ws/src/fred2_goal_manager/fred2_goal_manager/conf/goal_manag
 node_group = 'goal_reached'
 
 
+debug_mode = '--debug' in sys.argv
+
 
 class goal_reached(Node): 
     
@@ -35,8 +38,6 @@ class goal_reached(Node):
 
     robot_in_goal = Bool()
     robot_in_goal.data = False
-
-    ROBOT_IN_GOAL_TOLERANCE = 0.2
 
 
     def __init__(self, 
@@ -65,34 +66,34 @@ class goal_reached(Node):
         self.goalReached_pub = self.create_publisher(Bool, 'goal/reached', 10)
 
 
-    #     self.load_params(node_path, node_group)
-    #     self.get_params()
+        self.load_params(node_path, node_group)
+        self.get_params()
 
 
 
 
 
-    # def load_params(self, path, group): 
-    #     param_path = os.path.expanduser(path)
+    def load_params(self, path, group): 
+        param_path = os.path.expanduser(path)
 
-    #     with open(param_path, 'r') as params_list: 
-    #         params = yaml.safe_load(params_list)
+        with open(param_path, 'r') as params_list: 
+            params = yaml.safe_load(params_list)
         
-    #     # Get the params inside the specified group
-    #     params = params.get(group, {})
+        # Get the params inside the specified group
+        params = params.get(group, {})
 
-    #     # Declare parameters with values from the YAML file
-    #     for param_name, param_value in params.items():
-    #         # Adjust parameter name to lowercase
-    #         param_name_lower = param_name.lower()
-    #         self.declare_parameter(param_name_lower, param_value)
-    #         self.get_logger().info(f'{param_name_lower}: {param_value}')
+        # Declare parameters with values from the YAML file
+        for param_name, param_value in params.items():
+            # Adjust parameter name to lowercase
+            param_name_lower = param_name.lower()
+            self.declare_parameter(param_name_lower, param_value)
+            self.get_logger().info(f'{param_name_lower}: {param_value}')
 
 
 
-    # def get_params(self):
+    def get_params(self):
         
-    #     self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerence').value
+        self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerence').value
 
 
 
@@ -121,6 +122,9 @@ class goal_reached(Node):
 
         self.goalReached_pub.publish(self.robot_in_goal)
 
+        if debug_mode: 
+            self.get_logger().info(f'Delta X: {dx} | Delta Y: {dy}')
+            self.get_logger().info(f'Linear error: {linear_error} | Tolerance: {self.ROBOT_IN_GOAL_TOLERANCE} | Robo in goal: {self.robot_in_goal.data}\n')
 
 
 if __name__ == '__main__': 
