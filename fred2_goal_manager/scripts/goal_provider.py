@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import yaml
 import rclpy
 import threading
@@ -10,20 +11,32 @@ from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
 
-from geometry_msgs.msg import PoseArray, Pose
+from geometry_msgs.msg import PoseArray, Pose, PoseStamped
+from std_msgs.msg import Bool
+
 
 # Parameters file (yaml)
 node_path = '~/ros2_ws/src/fred2_goal_manager/fred2_goal_manager/conf/goal_manager.yaml'
 node_group = 'goal_provider'
 
-LED = 1.0
-GHOST = 0.0
+
+debug_mode = '--debug' in sys.argv
+
 
 class goal_provider(Node): 
     
-    goals_array = [[1.0, 2.0, LED], 
-                   [2.0, 3.0, GHOST]]
+    goal_reached = False
+    
+    goals_array = []
+    current_index = 0
 
+    current_goal = PoseStamped()
+
+    mission_completed = Bool()
+
+    last_goal_reached = False
+
+    goal_reached = False
 
     def __init__(self, 
                  node_name: str, 
@@ -43,46 +56,37 @@ class goal_provider(Node):
                          start_parameter_services=start_parameter_services, 
                          parameter_overrides=parameter_overrides)
         
-        self.goals_pub = self.create_publisher(PoseArray, '/goal_manager/goals', 10)
+        # Load parameters
+        self.load_params(node_path, node_group)
+
+        self.create_subscription(Bool, 'goal/reached', self.goalReached_callback, 1)
         
+        self.create_subscription(Bool, 'goal/reset', self.reset_callback, 10)
 
-        # self.load_params(node_path, node_group)
-        # self.get_params()
-    
-    def load_params(self, path, group): 
-        param_path = os.path.expanduser(path)
+        self.goals_pub = self.create_publisher(PoseArray, 'goals', 10)
 
-        with open(param_path, 'r') as params_list: 
-            params = yaml.safe_load(params_list)
+        self.goalCurrent_pub = self.create_publisher(PoseStamped, 'goal/current', 10)
+
+        self.missionCompleted_pub = self.create_publisher(Bool, 'goal/mission_completed', 10)
         
-        # Get the params inside the specified group
-        params = params.get(group, {})
-
-        # Declare parameters with values from the YAML file
-        for param_name, param_value in params.items():
-            # Adjust parameter name to lowercase
-            param_name_lower = param_name.lower()
-            self.declare_parameter(param_name_lower, param_value)
-            self.get_logger().info(f'{param_name_lower}: {param_value}')
-
-    # def get_params(self):
-    #     print('oi')
-
     
-    
-    def publish_goals(self): 
+
+    def main(self): 
         
         goals_pose = PoseArray()
         
         goals_pose.header.stamp = self.get_clock().now().to_msg()
-        goals_pose.header.frame_id = 'odom'
-        
-        for goal_data in self.goals_array:
-            x, y, theta = goal_data
+        goals_pose.header.frame_id = self.FRAME_ID
 
+        for goal_values in self.goals_array:
+            
+            x, y, theta = goal_values
+            
             pose_msg = Pose()
+
             pose_msg.position.x = x 
             pose_msg.position.y = y
+            
             pose_msg.orientation.z = theta
             pose_msg.orientation.w = 1.0
 
@@ -90,12 +94,91 @@ class goal_provider(Node):
 
         self.goals_pub.publish(goals_pose)
 
+        if debug_mode: 
+
+           self.get_logger().info(f'Current goal: {self.current_goal.pose.position.x}, {self.current_goal.pose.position.y}, {self.current_goal.pose.position.z}| Index: {self.current_index} | Number of goals: {len(self.goals_array)} ')
+           self.get_logger().info(f'Goal reached: {self.goal_reached} | Last status: {self.last_goal_reached} | Update goal: {self.goal_reached > self.last_goal_reached} \n')
+
+
+    def goalReached_callback(self, current_status):
+        
+        if current_status.data > self.last_goal_reached:
+
+            if self.current_index < (len(self.goals_array) - 1):
+                
+                self.current_goal.header.stamp = self.get_clock().now().to_msg()
+                self.current_goal.header.frame_id = self.FRAME_ID
+
+                pose_msg = Pose()
+                pose_msg.position.x, pose_msg.position.y, pose_msg.orientation.z = self.goals_array[self.current_index]
+
+                self.current_goal.pose = pose_msg
+
+                self.mission_completed.data = False
+                self.missionCompleted_pub.publish(self.mission_completed)
+
+                self.goalCurrent_pub.publish(self.current_goal)
+
+                # Increment the index only when an update happens
+                self.current_index += 1
+
+            if self.current_index == len(self.goals_array) - 1:
+                self.mission_completed.data = True
+                self.missionCompleted_pub.publish(self.mission_completed)
+        
+
+        self.last_goal_reached = current_status.data
+        self.goal_reached = current_status.data
+
+
+
+    
+    def reset_callback(self, reset_msg):
+        
+        reset_goals = reset_msg.data
+
+        if reset_goals: 
+            
+            self.current_index = 0
+    
+
+
+
+    def load_params(self, path, group): 
+        param_path = os.path.expanduser(path)
+
+        with open(param_path, 'r') as params_list: 
+            params = yaml.safe_load(params_list)
+
+        # Get the params inside the specified group
+        params = params.get(group, {})
+
+        # Get the 'goals' parameter
+        goals_param = params.get('goals', [])
+
+        # Initialize goals_array
+        self.goals_array = []
+
+        # Iterate over goal parameters
+        for goal_name, goal_values in goals_param.items():
+            # Append goal values to goals_array
+            self.goals_array.append(goal_values)
+
+        # Get the 'frame_id' parameter
+        self.FRAME_ID = params.get('frame_id', 'odom')
+
+        # Declare the 'frame_id' parameter
+        self.declare_parameter('frame_id', self.FRAME_ID)
+
+        # Print loaded parameters
+        self.get_logger().info(f'Loaded parameters: goals_array={self.goals_array}, frame_id={self.FRAME_ID}')
+
+
 
 
 if __name__ == '__main__': 
     rclpy.init()
     node = goal_provider('goal_provider', namespace='goal_manager', cli_args=['--debug'] )
-
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
@@ -103,7 +186,7 @@ if __name__ == '__main__':
 
     try: 
         while rclpy.ok(): 
-            node.publish_goals()
+            node.main()
             rate.sleep()
     except KeyboardInterrupt:
         pass
