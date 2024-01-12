@@ -1,0 +1,16 @@
+# my_launch.yaml
+launch:
+
+  - node:
+      pkg: fred2_goal_manager
+      exec: goal_provider.py
+      name: goal_provider
+      output: screen
+
+  - node: 
+      pkg: fred2_goal_manager
+      exec: goal_reached.py
+      name: goal_reached
+      output: screen
+
+
