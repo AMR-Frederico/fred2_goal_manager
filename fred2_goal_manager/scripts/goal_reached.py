@@ -4,8 +4,6 @@ import rclpy
 
 from rclpy.node import Node
 
-#!/usr/bin/env python3
-
 import os
 import sys
 import yaml
