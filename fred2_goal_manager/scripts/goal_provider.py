@@ -46,7 +46,8 @@ class goal_provider(Node):
                  use_global_arguments: bool = True, 
                  enable_rosout: bool = True, 
                  start_parameter_services: bool = True, 
-                 parameter_overrides: List[Parameter] | None = None) -> None:
+                 parameter_overrides: List[Parameter] | None = None, 
+                 allow_undeclared_parameters) -> None:
         
         super().__init__(node_name, 
                          cli_args=cli_args, 
@@ -54,7 +55,8 @@ class goal_provider(Node):
                          use_global_arguments=use_global_arguments, 
                          enable_rosout=enable_rosout, 
                          start_parameter_services=start_parameter_services, 
-                         parameter_overrides=parameter_overrides)
+                         parameter_overrides=parameter_overrides, 
+                         allow_undeclared_parameters=allow_undeclared_parameters)
         
         # Load parameters
         self.load_params(node_path, node_group)
@@ -177,8 +179,15 @@ class goal_provider(Node):
 
 
 if __name__ == '__main__': 
+    
     rclpy.init()
-    node = goal_provider('goal_provider', namespace='goal_manager', cli_args=['--debug'] )
+    
+    node = goal_provider('goal_provider', 
+                         namespace='goal_manager', 
+                         cli_args=['--debug'], 
+                         start_parameter_services= True, 
+                         allow_undeclared_parameters= True)
+    
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
