@@ -14,6 +14,7 @@ from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+from rcl_interfaces.msg import SetParametersResult
 
 from math import hypot
 
@@ -66,6 +67,25 @@ class goal_reached(Node):
 
         self.load_params(node_path, node_group)
         self.get_params()
+
+
+        self.add_on_set_parameters_callback(self.parameters_callback)
+
+
+
+    def parameters_callback(self, params):
+        
+        for param in params:
+            self.get_logger().info(f"Parameter '{param.name}' changed to: {param.value}")
+
+
+
+        if param.name == 'robot_in_goal_tolerence':
+            self.ROBOT_IN_GOAL_TOLERANCE = param.value
+    
+
+
+        return SetParametersResult(successful=True)
 
 
 
