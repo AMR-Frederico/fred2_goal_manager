@@ -10,6 +10,7 @@ from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+from rcl_interfaces.msg import SetParametersResult
 
 from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from std_msgs.msg import Bool
@@ -70,8 +71,36 @@ class goal_provider(Node):
         self.goalCurrent_pub = self.create_publisher(PoseStamped, 'goal/current', 10)
 
         self.missionCompleted_pub = self.create_publisher(Bool, 'goal/mission_completed', 10)
+
+
+        self.add_on_set_parameters_callback(self.parameters_callback)
+
         
     
+
+    def parameters_callback(self, params):
+
+
+        for param in params:
+
+            self.get_logger().info(f"Parameter '{param.name}' changed to: {param.value}")
+
+            if param.name == 'goal_provider.goals':
+                # Assuming the value is a dictionary where keys are goal names and values are lists [x, y, theta]
+                goals_dict = param.value
+                # Convert the dictionary to a list of goal values
+                self.goals_array = list(goals_dict.values())
+                self.get_logger().info(f"Updated goals_array: {self.goals_array}")
+
+            elif param.name == 'goal_provider.frame_id':
+
+                self.FRAME_ID = param.value
+                self.get_logger().info(f"Updated FRAME_ID: {self.FRAME_ID}")
+
+        return SetParametersResult(successful=True)
+
+
+
 
     def main(self): 
         
