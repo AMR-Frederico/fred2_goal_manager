@@ -10,10 +10,12 @@ from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+
 from rcl_interfaces.msg import SetParametersResult
+from rcl_interfaces.srv import GetParameters
 
 from geometry_msgs.msg import PoseArray, Pose, PoseStamped
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int16
 
 
 # Parameters file (yaml)
@@ -39,6 +41,20 @@ class goal_provider(Node):
 
     goal_reached = False
 
+    reset_goals = False
+
+    robot_state = 0
+
+
+    # starts with randon value 
+    ROBOT_MANUAL = 1000
+    ROBOT_AUTONOMOUS = 1000
+    ROBOT_IN_GOAL = 1000
+    ROBOT_MISSION_COMPLETED = 1000
+    ROBOT_EMERGENCY = 1000
+
+
+
     def __init__(self, 
                  node_name: str, 
                  *, # keyword-only argument
@@ -62,15 +78,38 @@ class goal_provider(Node):
         # Load parameters
         self.load_params(node_path, node_group)
 
-        self.create_subscription(Bool, 'goal/reached', self.goalReached_callback, 1)
+
+        self.create_subscription(Bool, 
+                                 'goal/reached', 
+                                 self.goalReached_callback, 
+                                 1)
         
-        self.create_subscription(Bool, 'goal/reset', self.reset_callback, 10)
 
-        self.goals_pub = self.create_publisher(PoseArray, 'goals', 10)
+        self.create_subscription(Bool, 
+                                 '/odom/reset', 
+                                 self.reset_callback, 
+                                 5)
+        
 
-        self.goalCurrent_pub = self.create_publisher(PoseStamped, 'goal/current', 10)
+        self.create_subscription(Int16, 
+                                 '/machine_states/robot_state',
+                                 self.robotState_callback, 
+                                 5)
 
-        self.missionCompleted_pub = self.create_publisher(Bool, 'goal/mission_completed', 10)
+
+        self.goals_pub = self.create_publisher(PoseArray, 
+                                               'goals', 
+                                               5)
+
+
+        self.goalCurrent_pub = self.create_publisher(PoseStamped, 
+                                                     'goal/current', 
+                                                     5)
+
+
+        self.missionCompleted_pub = self.create_publisher(Bool, 
+                                                          'goal/mission_completed', 
+                                                          5)
 
 
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -101,8 +140,16 @@ class goal_provider(Node):
 
 
 
+    def robotState_callback(self, msg): 
+
+        self.robot_state = msg.data
+
+
+
 
     def main(self): 
+        
+        #### Publish goals array 
         
         goals_pose = PoseArray()
         
@@ -123,52 +170,67 @@ class goal_provider(Node):
 
             goals_pose.poses.append(pose_msg)
 
+    
+
+        ##### Publish current goal 
+
         self.goals_pub.publish(goals_pose)
+        self.goalCurrent_pub.publish(self.current_goal)
+
+        print(self.goals_array[self.current_index])
+
+        self.current_goal.header.stamp = self.get_clock().now().to_msg()
+        self.current_goal.header.frame_id = self.FRAME_ID
+
+        pose_msg = Pose()
+        pose_msg.position.x, pose_msg.position.y, pose_msg.orientation.z = self.goals_array[self.current_index]
+
+        self.current_goal.pose = pose_msg
+        
 
         if debug_mode: 
 
-           self.get_logger().info(f'Current goal: {self.current_goal.pose.position.x}, {self.current_goal.pose.position.y}, {self.current_goal.pose.position.z}| Index: {self.current_index} | Number of goals: {len(self.goals_array)} ')
-           self.get_logger().info(f'Goal reached: {self.goal_reached} | Last status: {self.last_goal_reached} | Update goal: {self.goal_reached > self.last_goal_reached} \n')
+            self.get_logger().info(f'Current goal: {self.current_goal.pose.position.x}, {self.current_goal.pose.position.y}, {self.current_goal.pose.orientation.z}| Index: {self.current_index} | Number of goals: {len(self.goals_array)} ')
+            self.get_logger().info(f'Goal reached: {self.goal_reached} | Last status: {self.last_goal_reached} | Update goal: {self.goal_reached > self.last_goal_reached} \n')
+            self.get_logger().info(f'Goal reset: {self.reset_goals}')
+
 
 
     def goalReached_callback(self, current_status):
         
-        if current_status.data > self.last_goal_reached:
 
+        self.goal_reached = current_status.data
+
+
+        if (self.goal_reached > self.last_goal_reached) and self.robot_state == self.ROBOT_AUTONOMOUS:
+
+            
             if self.current_index < (len(self.goals_array) - 1):
                 
-                self.current_goal.header.stamp = self.get_clock().now().to_msg()
-                self.current_goal.header.frame_id = self.FRAME_ID
-
-                pose_msg = Pose()
-                pose_msg.position.x, pose_msg.position.y, pose_msg.orientation.z = self.goals_array[self.current_index]
-
-                self.current_goal.pose = pose_msg
-
                 self.mission_completed.data = False
                 self.missionCompleted_pub.publish(self.mission_completed)
 
-                self.goalCurrent_pub.publish(self.current_goal)
-
-                # Increment the index only when an update happens
                 self.current_index += 1
 
+                
             if self.current_index == len(self.goals_array) - 1:
+                
                 self.mission_completed.data = True
                 self.missionCompleted_pub.publish(self.mission_completed)
-        
+                self.get_logger().warn('Mission Completed!!!')
 
-        self.last_goal_reached = current_status.data
-        self.goal_reached = current_status.data
+
+        self.last_goal_reached = self.goal_reached
+
 
 
 
     
     def reset_callback(self, reset_msg):
         
-        reset_goals = reset_msg.data
+        self.reset_goals = reset_msg.data
 
-        if reset_goals: 
+        if self.reset_goals: 
             
             self.current_index = 0
     
@@ -205,6 +267,46 @@ class goal_provider(Node):
         self.get_logger().info(f'Loaded parameters: goals_array={self.goals_array}, frame_id={self.FRAME_ID}')
 
 
+        # Get global params 
+
+        self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
+        self.client.wait_for_service()
+
+        request = GetParameters.Request()
+        request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+
+        future = self.client.call_async(request)
+        future.add_done_callback(self.callback_global_param)
+
+
+    
+    def callback_global_param(self, future):
+
+
+        try:
+
+            result = future.result()
+
+            self.ROBOT_MANUAL = result.values[0].integer_value
+            self.ROBOT_AUTONOMOUS = result.values[1].integer_value
+            self.ROBOT_IN_GOAL = result.values[2].integer_value
+            self.ROBOT_MISSION_COMPLETED = result.values[3].integer_value
+            self.ROBOT_EMERGENCY = result.values[4].integer_value
+
+
+            self.get_logger().info(f"Got global param ROBOT_MANUAL -> {self.ROBOT_MANUAL}")
+            self.get_logger().info(f"Got global param ROBOT_AUTONOMOUS -> {self.ROBOT_AUTONOMOUS}")
+            self.get_logger().info(f"Got global param ROBOT_IN GOAL -> {self.ROBOT_IN_GOAL}")
+            self.get_logger().info(f"Got global param ROBOT_MISSION_COMPLETED: {self.ROBOT_MISSION_COMPLETED}")
+            self.get_logger().info(f"Got global param ROBOT_EMERGENCY: {self.ROBOT_EMERGENCY}\n")
+
+
+
+        except Exception as e:
+
+            self.get_logger().warn("Service call failed %r" % (e,))
+
+
 
 
 if __name__ == '__main__': 
@@ -220,7 +322,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
-    rate = node.create_rate(10)
+    rate = node.create_rate(1)
 
     try: 
         while rclpy.ok(): 
