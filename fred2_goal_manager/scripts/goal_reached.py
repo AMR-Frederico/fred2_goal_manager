@@ -14,7 +14,9 @@ from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+
 from rcl_interfaces.msg import SetParametersResult
+from rcl_interfaces.srv import GetParameters
 
 from math import hypot
 
@@ -38,7 +40,18 @@ class goal_reached(Node):
     robot_in_goal = Bool()
     robot_in_goal.data = False
 
-    robot_state = 1000
+    robot_state = 100
+
+
+
+    # starts with randon value 
+    ROBOT_MANUAL = 1000
+    ROBOT_AUTONOMOUS = 1000
+    ROBOT_IN_GOAL = 1000
+    ROBOT_MISSION_COMPLETED = 1000
+    ROBOT_EMERGENCY = 1000
+
+
 
     def __init__(self, 
                  node_name: str, 
@@ -132,6 +145,47 @@ class goal_reached(Node):
 
 
 
+        # Get global params 
+
+        self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
+        self.client.wait_for_service()
+
+        request = GetParameters.Request()
+        request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+
+        future = self.client.call_async(request)
+        future.add_done_callback(self.callback_global_param)
+
+
+    
+    def callback_global_param(self, future):
+
+
+        try:
+
+            result = future.result()
+
+            self.ROBOT_MANUAL = result.values[0].integer_value
+            self.ROBOT_AUTONOMOUS = result.values[1].integer_value
+            self.ROBOT_IN_GOAL = result.values[2].integer_value
+            self.ROBOT_MISSION_COMPLETED = result.values[3].integer_value
+            self.ROBOT_EMERGENCY = result.values[4].integer_value
+
+
+            self.get_logger().info(f"Got global param ROBOT_MANUAL -> {self.ROBOT_MANUAL}")
+            self.get_logger().info(f"Got global param ROBOT_AUTONOMOUS -> {self.ROBOT_AUTONOMOUS}")
+            self.get_logger().info(f"Got global param ROBOT_IN GOAL -> {self.ROBOT_IN_GOAL}")
+            self.get_logger().info(f"Got global param ROBOT_MISSION_COMPLETED: {self.ROBOT_MISSION_COMPLETED}")
+            self.get_logger().info(f"Got global param ROBOT_EMERGENCY: {self.ROBOT_EMERGENCY}\n")
+
+
+
+        except Exception as e:
+
+            self.get_logger().warn("Service call failed %r" % (e,))
+
+
+
     def odom_callback(self, odom_msg): 
 
         self.robot.position.x = odom_msg.pose.pose.position.x 
@@ -158,7 +212,7 @@ class goal_reached(Node):
 
         linear_error = hypot(dx, dy)
 
-        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == 2: 
+        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_MANUAL: 
             
             self.robot_in_goal.data = True
         
