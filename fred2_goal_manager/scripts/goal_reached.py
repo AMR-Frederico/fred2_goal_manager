@@ -20,7 +20,7 @@ from math import hypot
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose, PoseStamped
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int16
 
 # Parameters file (yaml)
 node_path = '~/ros2_ws/src/fred2_goal_manager/conf/goal_manager.yaml'
@@ -38,6 +38,7 @@ class goal_reached(Node):
     robot_in_goal = Bool()
     robot_in_goal.data = False
 
+    robot_state = 1000
 
     def __init__(self, 
                  node_name: str, 
@@ -58,11 +59,27 @@ class goal_reached(Node):
                          parameter_overrides=parameter_overrides)
         
         
-        self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
+        self.create_subscription(Odometry, 
+                                 '/odom', 
+                                 self.odom_callback, 
+                                 10)
 
-        self.create_subscription(PoseStamped, 'goal/current', self.goalCurrent_callback, 10)
 
-        self.goalReached_pub = self.create_publisher(Bool, 'goal/reached', 10)
+        self.create_subscription(PoseStamped, 
+                                 'goal/current', 
+                                 self.goalCurrent_callback, 
+                                 10)
+        
+
+        self.create_subscription(Int16,
+                                 '/machine_states/robot_state',
+                                 self.robot_state_callback, 
+                                 5 )
+
+
+        self.goalReached_pub = self.create_publisher(Bool, 
+                                                     'goal/reached', 
+                                                     10)
 
 
         self.load_params(node_path, node_group)
@@ -129,6 +146,11 @@ class goal_reached(Node):
         self.goal.position.y = goal_msg.pose.position.y 
 
 
+    def robot_state_callback(self, robot_state): 
+        
+        self.robot_state = robot_state.data
+
+
     def main(self): 
         
         dx = self.goal.position.x - self.robot.position.x 
@@ -136,7 +158,14 @@ class goal_reached(Node):
 
         linear_error = hypot(dx, dy)
 
-        self.robot_in_goal.data = linear_error < self.ROBOT_IN_GOAL_TOLERANCE
+        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == 2: 
+            
+            self.robot_in_goal.data = True
+        
+        else: 
+            
+            self.robot_in_goal.data = False
+
 
         self.goalReached_pub.publish(self.robot_in_goal)
 
@@ -152,7 +181,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
-    rate = node.create_rate(10)
+    rate = node.create_rate(1)
 
     try: 
         while rclpy.ok(): 
