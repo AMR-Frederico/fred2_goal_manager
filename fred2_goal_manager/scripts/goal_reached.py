@@ -30,6 +30,8 @@ node_group = 'goal_reached'
 
 
 debug_mode = '--debug' in sys.argv
+use_robot_localization = '--use-robot-localization' in sys.argv
+
 
 
 class goal_reached(Node): 
@@ -71,11 +73,6 @@ class goal_reached(Node):
                          start_parameter_services=start_parameter_services, 
                          parameter_overrides=parameter_overrides)
         
-        
-        self.create_subscription(Odometry, 
-                                 '/odom', 
-                                 self.odom_callback, 
-                                 10)
 
 
         self.create_subscription(PoseStamped, 
@@ -88,6 +85,26 @@ class goal_reached(Node):
                                  '/machine_states/robot_state',
                                  self.robot_state_callback, 
                                  5 )
+        
+
+        if use_robot_localization: 
+            
+            self.get_logger().info('Using ROBOT LOCALIZATION odometry')
+            
+            self.create_subscription(Odometry,
+                                    '/odometry/filtered', 
+                                    self.odom_callback, 
+                                    10)
+        
+
+        else: 
+            
+            self.get_logger().info('Using MOVE BASE odometry')
+            
+            self.create_subscription(Odometry,
+                                    '/odom', 
+                                    self.odom_callback, 
+                                    10)
 
 
         self.goalReached_pub = self.create_publisher(Bool, 
@@ -230,9 +247,13 @@ class goal_reached(Node):
             self.get_logger().info(f'Linear error: {linear_error} | Tolerance: {self.ROBOT_IN_GOAL_TOLERANCE} | Robo in goal: {self.robot_in_goal.data}\n')
 
 
+
 if __name__ == '__main__': 
     rclpy.init()
-    node = goal_reached('goal_reached', namespace='goal_manager', cli_args=['--debug'] )
+    node = goal_reached(
+        node_name='goal_reached', 
+        namespace='goal_manager', 
+        cli_args=['--debug', '--use-robot-localization'] )
 
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
