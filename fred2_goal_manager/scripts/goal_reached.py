@@ -215,6 +215,8 @@ class goal_reached(Node):
         if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_MANUAL: 
             
             self.robot_in_goal.data = True
+
+            self.get_logger('Goal Reached!!!!')
         
         else: 
             

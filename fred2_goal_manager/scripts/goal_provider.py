@@ -212,6 +212,8 @@ class goal_provider(Node):
 
                 self.current_index += 1
 
+                self.get_logger().info(f'Goal index changed: {self.current_index}')
+
                 
             if self.current_index == len(self.goals_array) - 1:
                 
