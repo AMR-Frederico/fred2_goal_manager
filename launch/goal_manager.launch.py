@@ -3,6 +3,7 @@ import launch_ros.descriptions
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import TimerAction, LogInfo
 
 
 def generate_launch_description():
@@ -30,7 +31,15 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        goal_provider_node, 
-        goal_reached_node
+        TimerAction(period= 1.5, actions= [
+            
+            LogInfo(msg=' ######################### LAUNCHING GOAL PROVIDER #################################### '), 
+            goal_provider_node
+        ]), 
 
+        TimerAction(period= 1.5, actions= [
+
+            LogInfo(msg=' ######################### LAUNCHING GOAL REACHED #################################### '), 
+            goal_reached_node
+        ])
     ])

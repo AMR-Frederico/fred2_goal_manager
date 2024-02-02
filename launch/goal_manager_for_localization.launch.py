@@ -3,7 +3,7 @@ import launch_ros.descriptions
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, TimerAction, LogInfo
 from launch.substitutions import LaunchConfiguration
 
 
@@ -44,8 +44,17 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        declare_robot_localization_odom,
-        goal_provider_node, 
-        goal_reached_node
+        declare_robot_localization_odom, 
 
+        TimerAction(period= 1.5, actions= [
+            
+            LogInfo(msg=' ######################### LAUNCHING GOAL PROVIDER #################################### '), 
+            goal_provider_node
+        ]), 
+
+        TimerAction(period= 1.5, actions= [
+
+            LogInfo(msg=' ######################### LAUNCHING GOAL REACHED #################################### '), 
+            goal_reached_node
+        ])
     ])
