@@ -10,10 +10,12 @@ import yaml
 import rclpy
 import threading
 
-from rclpy.node import Node
 from typing import List, Optional
+
+from rclpy.node import Node
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+from rclpy.qos import QoSPresetProfiles, QoSProfile, QoSHistoryPolicy, QoSLivelinessPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 from rcl_interfaces.msg import SetParametersResult
 from rcl_interfaces.srv import GetParameters
@@ -73,18 +75,28 @@ class goal_reached(Node):
                          start_parameter_services=start_parameter_services, 
                          parameter_overrides=parameter_overrides)
         
+        
+        # quality protocol -> the node must not lose any message 
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE, 
+            durability= QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            history=QoSHistoryPolicy.KEEP_LAST, 
+            depth=10, 
+            liveliness=QoSLivelinessPolicy.AUTOMATIC
+            
+        )
 
 
         self.create_subscription(PoseStamped, 
                                  'goal/current', 
                                  self.goalCurrent_callback, 
-                                 10)
+                                 5)
         
 
         self.create_subscription(Int16,
                                  '/machine_states/robot_state',
                                  self.robot_state_callback, 
-                                 5 )
+                                 5)
         
 
         if use_robot_localization: 
@@ -94,7 +106,7 @@ class goal_reached(Node):
             self.create_subscription(Odometry,
                                     '/odometry/filtered', 
                                     self.odom_callback, 
-                                    10)
+                                    qos_profile)
         
 
         else: 
@@ -104,12 +116,12 @@ class goal_reached(Node):
             self.create_subscription(Odometry,
                                     '/odom', 
                                     self.odom_callback, 
-                                    10)
+                                    qos_profile)
 
 
         self.goalReached_pub = self.create_publisher(Bool, 
                                                      'goal/reached', 
-                                                     10)
+                                                     5)
 
 
         self.load_params(node_path, node_group)

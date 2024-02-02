@@ -10,6 +10,7 @@ from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
 from rclpy.parameter import Parameter
+from rclpy.qos import QoSPresetProfiles, QoSProfile, QoSHistoryPolicy, QoSLivelinessPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 from rcl_interfaces.msg import SetParametersResult
 from rcl_interfaces.srv import GetParameters
@@ -79,16 +80,27 @@ class goal_provider(Node):
         self.load_params(node_path, node_group)
 
 
+        # quality protocol -> the node can't lose any message 
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE, 
+            durability= QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            history=QoSHistoryPolicy.KEEP_LAST, 
+            depth=10, 
+            liveliness=QoSLivelinessPolicy.AUTOMATIC
+            
+        )
+
+
         self.create_subscription(Bool, 
                                  'goal/reached', 
                                  self.goalReached_callback, 
-                                 1)
+                                 qos_profile)
         
 
         self.create_subscription(Bool, 
                                  '/odom/reset', 
                                  self.reset_callback, 
-                                 5)
+                                 qos_profile)
         
 
         self.create_subscription(Int16, 
