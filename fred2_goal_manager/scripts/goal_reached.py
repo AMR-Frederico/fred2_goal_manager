@@ -229,7 +229,7 @@ class goal_reached(Node):
 
         linear_error = hypot(dx, dy)
 
-        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_MANUAL: 
+        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS: 
             
             self.robot_in_goal.data = True
 
