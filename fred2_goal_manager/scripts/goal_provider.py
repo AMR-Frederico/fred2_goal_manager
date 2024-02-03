@@ -83,7 +83,7 @@ class goal_provider(Node):
         # quality protocol -> the node can't lose any message 
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.RELIABLE, 
-            durability= QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            durability= QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST, 
             depth=10, 
             liveliness=QoSLivelinessPolicy.AUTOMATIC
@@ -106,22 +106,22 @@ class goal_provider(Node):
         self.create_subscription(Int16, 
                                  '/machine_states/robot_state',
                                  self.robotState_callback, 
-                                 5)
+                                 qos_profile)
 
 
         self.goals_pub = self.create_publisher(PoseArray, 
                                                'goals', 
-                                               5)
+                                               qos_profile)
 
 
         self.goalCurrent_pub = self.create_publisher(PoseStamped, 
                                                      'goal/current', 
-                                                     5)
+                                                     qos_profile)
 
 
         self.missionCompleted_pub = self.create_publisher(Bool, 
                                                           'goal/mission_completed', 
-                                                          5)
+                                                          qos_profile)
 
 
         self.add_on_set_parameters_callback(self.parameters_callback)

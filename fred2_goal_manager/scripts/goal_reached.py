@@ -79,7 +79,7 @@ class goal_reached(Node):
         # quality protocol -> the node must not lose any message 
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.RELIABLE, 
-            durability= QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            durability= QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST, 
             depth=10, 
             liveliness=QoSLivelinessPolicy.AUTOMATIC
@@ -90,13 +90,13 @@ class goal_reached(Node):
         self.create_subscription(PoseStamped, 
                                  'goal/current', 
                                  self.goalCurrent_callback, 
-                                 5)
+                                 qos_profile)
         
 
         self.create_subscription(Int16,
                                  '/machine_states/robot_state',
                                  self.robot_state_callback, 
-                                 5)
+                                 qos_profile)
         
 
         if use_robot_localization: 
@@ -121,7 +121,7 @@ class goal_reached(Node):
 
         self.goalReached_pub = self.create_publisher(Bool, 
                                                      'goal/reached', 
-                                                     5)
+                                                     qos_profile)
 
 
         self.load_params(node_path, node_group)
