@@ -245,7 +245,7 @@ class goal_reached(Node):
             
             self.robot_in_goal.data = True
 
-            self.get_logger('Goal Reached!!!!')
+            self.get_logger().info('Goal Reached!!!!')
         
         else: 
             
@@ -255,6 +255,7 @@ class goal_reached(Node):
         self.goalReached_pub.publish(self.robot_in_goal)
 
         if debug_mode: 
+            self.get_logger().info(f'Goal X: {self.goal.position.x} | Goal Y: {self.goal.position.y} ')
             self.get_logger().info(f'Delta X: {dx} | Delta Y: {dy}')
             self.get_logger().info(f'Linear error: {linear_error} | Tolerance: {self.ROBOT_IN_GOAL_TOLERANCE} | Robo in goal: {self.robot_in_goal.data}\n')
 
