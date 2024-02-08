@@ -226,12 +226,13 @@ class goal_provider(Node):
 
                 self.get_logger().info(f'Goal index changed: {self.current_index}')
 
+
                 
-            if self.current_index == len(self.goals_array) - 1:
-                
-                self.mission_completed.data = True
-                self.missionCompleted_pub.publish(self.mission_completed)
-                self.get_logger().warn('Mission Completed!!!')
+        if self.current_index == len(self.goals_array) - 1:
+            
+            self.mission_completed.data = True
+            self.missionCompleted_pub.publish(self.mission_completed)
+            self.get_logger().warn('Mission Completed!!!')
 
 
         self.last_goal_reached = self.goal_reached
