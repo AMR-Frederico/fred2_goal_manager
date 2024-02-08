@@ -36,7 +36,7 @@ class goal_provider(Node):
 
     current_goal = PoseStamped()
 
-    mission_completed = Bool()
+    in_last_goal = Bool()
 
     last_goal_reached = False
 
@@ -119,9 +119,9 @@ class goal_provider(Node):
                                                      qos_profile)
 
 
-        self.missionCompleted_pub = self.create_publisher(Bool, 
-                                                          'goal/mission_completed', 
-                                                          qos_profile)
+        self.inLastGoal_pub = self.create_publisher(Bool, 
+                                                    'robot/in_last_goal', 
+                                                    qos_profile)
 
 
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -219,8 +219,8 @@ class goal_provider(Node):
             
             if self.current_index < (len(self.goals_array) - 1):
                 
-                self.mission_completed.data = False
-                self.missionCompleted_pub.publish(self.mission_completed)
+                self.in_goal.data = False
+                self.inLastGoal_pub.publish(self.in_last_goal)
 
                 self.current_index += 1
 
@@ -230,9 +230,9 @@ class goal_provider(Node):
                 
         if self.current_index == len(self.goals_array) - 1:
             
-            self.mission_completed.data = True
-            self.missionCompleted_pub.publish(self.mission_completed)
-            self.get_logger().warn('Mission Completed!!!')
+            self.in_last_goal.data = True
+            self.inLastGoal_pub.publish(self.in_last_goal)
+            self.get_logger().warn('Heading to last goal!!!')
 
 
         self.last_goal_reached = self.goal_reached

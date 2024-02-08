@@ -46,6 +46,11 @@ class goal_reached(Node):
 
     robot_state = 100
 
+    last_goal = False
+
+    mission_completed = Bool()
+    mission_completed.data = False
+
 
 
     # starts with randon value 
@@ -98,6 +103,11 @@ class goal_reached(Node):
                                  self.robot_state_callback, 
                                  qos_profile)
         
+        self.create_subscription(Bool, 
+                                 'robot/in_last_goal', 
+                                 self.lastGoal_callback, 
+                                 qos_profile)
+        
 
         if use_robot_localization: 
             
@@ -122,6 +132,13 @@ class goal_reached(Node):
         self.goalReached_pub = self.create_publisher(Bool, 
                                                      'goal/reached', 
                                                      qos_profile)
+        
+
+        self.missionCompleted_pub = self.create_publisher(Bool, 
+                                                          'goal/mission_completed', 
+                                                          qos_profile)
+
+        self.goal
 
 
         self.load_params(node_path, node_group)
@@ -229,9 +246,17 @@ class goal_reached(Node):
         self.goal.position.y = goal_msg.pose.position.y 
 
 
+
     def robot_state_callback(self, robot_state): 
         
         self.robot_state = robot_state.data
+
+
+
+    def lastGoal_callback(self, status): 
+
+        self.last_goal = status.msg
+
 
 
     def main(self): 
@@ -246,13 +271,29 @@ class goal_reached(Node):
             self.robot_in_goal.data = True
 
             self.get_logger().info('Goal Reached!!!!')
+
+
+            if self.last_goal: 
+
+                self.mission_completed.data = True
+            
+            else: 
+
+                self.mission_completed.data = False
+            
+
+            self.missionCompleted_pub.publish(self.mission_completed)
+
         
         else: 
             
             self.robot_in_goal.data = False
 
 
+
         self.goalReached_pub.publish(self.robot_in_goal)
+
+
 
         if debug_mode: 
             self.get_logger().info(f'Goal X: {self.goal.position.x} | Goal Y: {self.goal.position.y} ')
