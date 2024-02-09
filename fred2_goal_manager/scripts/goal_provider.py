@@ -46,7 +46,6 @@ class goal_provider(Node):
 
     robot_state = 0
 
-
     # starts with randon value 
     ROBOT_MANUAL = 1000
     ROBOT_AUTONOMOUS = 1000
@@ -219,8 +218,7 @@ class goal_provider(Node):
             
             if self.current_index < (len(self.goals_array) - 1):
                 
-                self.in_goal.data = False
-                self.inLastGoal_pub.publish(self.in_last_goal)
+                self.in_last_goal.data = False
 
                 self.current_index += 1
 
@@ -231,10 +229,10 @@ class goal_provider(Node):
         if self.current_index == len(self.goals_array) - 1:
             
             self.in_last_goal.data = True
-            self.inLastGoal_pub.publish(self.in_last_goal)
             self.get_logger().warn('Heading to last goal!!!')
 
 
+        self.inLastGoal_pub.publish(self.in_last_goal)
         self.last_goal_reached = self.goal_reached
 
 
