@@ -255,7 +255,7 @@ class goal_reached(Node):
 
     def lastGoal_callback(self, status): 
 
-        self.last_goal = status.msg
+        self.last_goal = status.data
 
 
 
@@ -266,30 +266,33 @@ class goal_reached(Node):
 
         linear_error = hypot(dx, dy)
 
-        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS: 
+        if (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and not self.last_goal: 
             
             self.robot_in_goal.data = True
 
             self.get_logger().info('Goal Reached!!!!')
 
 
-            if self.last_goal: 
 
-                self.mission_completed.data = True
+        elif (linear_error < self.ROBOT_IN_GOAL_TOLERANCE) and self.robot_state == self.ROBOT_AUTONOMOUS and self.last_goal: 
+
             
-            else: 
+            
+            self.mission_completed.data = True
 
-                self.mission_completed.data = False
+            self.get_logger().info('Mission Completed !!!!')
             
 
-            self.missionCompleted_pub.publish(self.mission_completed)
-
-        
         else: 
             
             self.robot_in_goal.data = False
 
+            self.mission_completed.data = False
+            
 
+
+
+        self.missionCompleted_pub.publish(self.mission_completed)
 
         self.goalReached_pub.publish(self.robot_in_goal)
 
