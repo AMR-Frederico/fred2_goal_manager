@@ -246,6 +246,8 @@ class goal_provider(Node):
         if self.reset_goals: 
             
             self.current_index = 0
+            self.in_last_goal.data = False
+            self.inLastGoal_pub.publish(self.in_last_goal)
     
 
 
@@ -335,7 +337,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
-    rate = node.create_rate(1)
+    rate = node.create_rate(7)
 
     try: 
         while rclpy.ok(): 
