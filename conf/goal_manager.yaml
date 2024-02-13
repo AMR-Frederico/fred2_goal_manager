@@ -1,11 +1,14 @@
 goal_provider:
   
   goals:
-    goal_1: [1.0, 1.0, 0.0]
-    goal_2: [1.0, 2.0, 1.0]
-    goal_3: [3.0, 4.0, 1.0]
-    goal_4: [2.0, 4.0, 0.0]
-    goal_5: [5.0, 4.0, 0.0]
+    goal_1: [0.0, 0.0, 0.0]
+    # goal_2: [1.0, 0.0, 1.0]
+    goal_2: [2.0, 0.0, 0.0]
+    # goal_4: [3.0, 0.0, 1.0]
+    goal_3: [4.0, 0.0, 0.0]
+    goal_4: [6.0, 0.0, 1.0]
+
+
 
   frame_id: "odom"  
 
@@ -14,4 +17,4 @@ goal_provider:
 
 goal_reached: 
 
-  robot_in_goal_tolerence: 0.2  #distance in meters 
+  robot_in_goal_tolerence: 0.3  #distance in meters 
