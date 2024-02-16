@@ -188,8 +188,6 @@ class goal_provider(Node):
         self.goals_pub.publish(goals_pose)
         self.goalCurrent_pub.publish(self.current_goal)
 
-        print(self.goals_array[self.current_index])
-
         self.current_goal.header.stamp = self.get_clock().now().to_msg()
         self.current_goal.header.frame_id = self.FRAME_ID
 
