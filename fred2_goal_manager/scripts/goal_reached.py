@@ -32,7 +32,6 @@ node_group = 'goal_reached'
 
 
 debug_mode = '--debug' in sys.argv
-use_robot_localization = '--use-robot-localization' in sys.argv
 
 
 
@@ -108,25 +107,11 @@ class goal_reached(Node):
                                  self.lastGoal_callback, 
                                  qos_profile)
         
-
-        if use_robot_localization: 
-            
-            self.get_logger().info('Using ROBOT LOCALIZATION odometry')
-            
-            self.create_subscription(Odometry,
-                                    '/odometry/filtered', 
-                                    self.odom_callback, 
-                                    qos_profile)
-        
-
-        else: 
-            
-            self.get_logger().info('Using MOVE BASE odometry')
-            
-            self.create_subscription(Odometry,
-                                    '/odom', 
-                                    self.odom_callback, 
-                                    qos_profile)
+                    
+        self.create_subscription(Odometry,
+                                '/odom', 
+                                self.odom_callback, 
+                                qos_profile)
 
 
         self.goalReached_pub = self.create_publisher(Bool, 
@@ -310,7 +295,7 @@ if __name__ == '__main__':
     node = goal_reached(
         node_name='goal_reached', 
         namespace='goal_manager', 
-        cli_args=['--debug', '--use-robot-localization'] )
+        cli_args=['--debug'] )
 
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()

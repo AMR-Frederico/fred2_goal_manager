@@ -14,6 +14,8 @@ def generate_launch_description():
         executable = 'goal_provider.py',
         name = 'goal_provider',
         output = 'screen',
+        parameters=[{'use_sim_time': False}]
+
     )
 
 
@@ -23,7 +25,7 @@ def generate_launch_description():
         executable = 'goal_reached.py',
         name = 'goal_reached',
         output = 'screen',
-
+        parameters=[{'use_sim_time': False}]
 
     )
 
