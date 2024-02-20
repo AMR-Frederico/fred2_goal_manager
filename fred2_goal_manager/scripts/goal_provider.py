@@ -20,7 +20,7 @@ from std_msgs.msg import Bool, Int16
 
 
 # Parameters file (yaml)
-node_path = '~/ros2_ws/src/fred2_goal_manager/conf/goal_manager.yaml'
+node_path = '/home/ubuntu/ros2_ws/src/fred2_goal_manager/conf/goal_manager.yaml'
 node_group = 'goal_provider'
 
 
