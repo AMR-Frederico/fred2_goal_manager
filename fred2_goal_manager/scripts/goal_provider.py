@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
-import os
 import sys
-import yaml
+import json
 import rclpy
 import threading
 
-from rclpy.node import Node
 from typing import List, Optional
 from rclpy.context import Context 
-from rclpy.parameter import Parameter
+from rclpy.node import Node, ParameterDescriptor
+from rclpy.parameter import Parameter, ParameterType
 from rclpy.qos import QoSPresetProfiles, QoSProfile, QoSHistoryPolicy, QoSLivelinessPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 from rcl_interfaces.msg import SetParametersResult
@@ -19,11 +18,6 @@ from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from std_msgs.msg import Bool, Int16
 
 
-# Parameters file (yaml)
-node_path = '/home/ubuntu/ros2_ws/src/fred2_goal_manager/conf/goal_manager.yaml'
-node_group = 'goal_provider'
-
-
 debug_mode = '--debug' in sys.argv
 
 
@@ -31,7 +25,7 @@ class goal_provider(Node):
     
     goal_reached = False
     
-    goals_array = []
+    goals = []
     current_index = 0
 
     current_goal = PoseStamped()
@@ -76,7 +70,8 @@ class goal_provider(Node):
                          allow_undeclared_parameters=allow_undeclared_parameters)
         
         # Load parameters
-        self.load_params(node_path, node_group)
+        self.load_params()
+        self.get_params()
 
 
         # quality protocol -> the node can't lose any message 
@@ -128,25 +123,27 @@ class goal_provider(Node):
         
     
 
-    def parameters_callback(self, params):
-
-
+    # this function update the paramets value changed by ros2 param set
+    def parameters_callback(self, params):  
+        
         for param in params:
-
             self.get_logger().info(f"Parameter '{param.name}' changed to: {param.value}")
 
-            if param.name == 'goal_provider.goals':
-                # Assuming the value is a dictionary where keys are goal names and values are lists [x, y, theta]
-                goals_dict = param.value
-                # Convert the dictionary to a list of goal values
-                self.goals_array = list(goals_dict.values())
-                self.get_logger().info(f"Updated goals_array: {self.goals_array}")
 
-            elif param.name == 'goal_provider.frame_id':
+        if param.name == 'frame_id':
+            self.FRAME_ID = param.value
 
-                self.FRAME_ID = param.value
-                self.get_logger().info(f"Updated FRAME_ID: {self.FRAME_ID}")
 
+        if param.name == 'goals': 
+            self.goals = json.loads(param.value)
+    
+        
+        if param.name == 'debug': 
+            self.DEBUG = param.value
+        
+
+        if param.name == 'unit_test': 
+            self.UNIT_TEST = param.value
 
 
         return SetParametersResult(successful=True)
@@ -169,7 +166,7 @@ class goal_provider(Node):
         goals_pose.header.stamp = self.get_clock().now().to_msg()
         goals_pose.header.frame_id = self.FRAME_ID
 
-        for goal_values in self.goals_array:
+        for goal_values in self.goals:
             
             x, y, theta = goal_values
             
@@ -194,14 +191,14 @@ class goal_provider(Node):
         self.current_goal.header.frame_id = self.FRAME_ID
 
         pose_msg = Pose()
-        pose_msg.position.x, pose_msg.position.y, pose_msg.orientation.z = self.goals_array[self.current_index]
+        pose_msg.position.x, pose_msg.position.y, pose_msg.orientation.z = self.goals[self.current_index]
 
         self.current_goal.pose = pose_msg
         
 
-        if debug_mode: 
+        if debug_mode or self.DEBUG: 
 
-            self.get_logger().info(f'Current goal: {self.current_goal.pose.position.x}, {self.current_goal.pose.position.y}, {self.current_goal.pose.orientation.z}| Index: {self.current_index} | Number of goals: {len(self.goals_array)} ')
+            self.get_logger().info(f'Current goal: {self.current_goal.pose.position.x}, {self.current_goal.pose.position.y}, {self.current_goal.pose.orientation.z}| Index: {self.current_index} | Number of goals: {len(self.goals)} ')
             self.get_logger().info(f'Goal reached: {self.goal_reached} | Last status: {self.last_goal_reached} | Update goal: {self.goal_reached > self.last_goal_reached} \n')
             self.get_logger().info(f'Goal reset: {self.reset_goals}')
 
@@ -216,7 +213,7 @@ class goal_provider(Node):
         if (self.goal_reached > self.last_goal_reached) and self.robot_state == self.ROBOT_AUTONOMOUS:
 
             
-            if self.current_index < (len(self.goals_array) - 1):
+            if self.current_index < (len(self.goals) - 1):
                 
                 self.in_last_goal.data = False
 
@@ -226,7 +223,7 @@ class goal_provider(Node):
 
 
                 
-        if self.current_index == len(self.goals_array) - 1:
+        if self.current_index == len(self.goals) - 1:
             
             self.in_last_goal.data = True
             self.get_logger().warn('Heading to last goal!!!')
@@ -251,48 +248,59 @@ class goal_provider(Node):
     
 
 
+    def load_params(self):
 
-    def load_params(self, path, group): 
-        param_path = os.path.expanduser(path)
-
-        with open(param_path, 'r') as params_list: 
-            params = yaml.safe_load(params_list)
-
-        # Get the params inside the specified group
-        params = params.get(group, {})
-
-        # Get the 'goals' parameter
-        goals_param = params.get('goals', [])
-
-        # Initialize goals_array
-        self.goals_array = []
-
-        # Iterate over goal parameters
-        for goal_name, goal_values in goals_param.items():
-            # Append goal values to goals_array
-            self.goals_array.append(goal_values)
-
-        # Get the 'frame_id' parameter
-        self.FRAME_ID = params.get('frame_id', 'odom')
-
-        # Declare the 'frame_id' parameter
-        self.declare_parameter('frame_id', self.FRAME_ID)
-
-        # Print loaded parameters
-        self.get_logger().info(f'Loaded parameters: goals_array={self.goals_array}, frame_id={self.FRAME_ID}')
+        # Declare parameters
+        self.declare_parameters(
+            namespace='',
+            
+            parameters=[
+                ('frame_id', None, ParameterDescriptor(
+                    description='The frame of reference for the goals',
+                    type=ParameterType.PARAMETER_STRING)),
+                ('goals', None, ParameterDescriptor(
+                    description='List of goals, each as [x, y, theta]',
+                    type=ParameterType.PARAMETER_STRING)),
+                ('debug', None, ParameterDescriptor(
+                    description='Enable debug prints for troubleshooting',
+                    type=ParameterType.PARAMETER_BOOL)),
+                ('unit_test', None, ParameterDescriptor(
+                    description='Allow the node to run isolated for unit testing',
+                    type=ParameterType.PARAMETER_BOOL))
+            ]
+        )
 
 
-        # Get global params 
+    def get_params(self):
+        # Fetch the parameters
+        self.FRAME_ID = self.get_parameter('frame_id').get_parameter_value().string_value
+        goals_str = self.get_parameter('goals').get_parameter_value().string_value
+        self.DEBUG = self.get_parameter('debug').get_parameter_value().bool_value
+        self.UNIT_TEST = self.get_parameter('unit_test').get_parameter_value().bool_value
 
-        self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
-        self.client.wait_for_service()
+        # Decode the JSON string to get the actual list structure for goals
+        self.goals = json.loads(goals_str)
 
-        request = GetParameters.Request()
-        request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+        
+        # if the unit test is active, it disabled the global param from machine states 
+        if self.UNIT_TEST: 
+            
+            self.robot_state = 2
+            self.get_logger().info('In UNIT TEST mode')  
 
-        future = self.client.call_async(request)
-        future.add_done_callback(self.callback_global_param)
+        
+        else: 
 
+            # Get global params 
+            self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
+            self.client.wait_for_service()
+
+            request = GetParameters.Request()
+            request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+
+            future = self.client.call_async(request)
+            future.add_done_callback(self.callback_global_param)
+        
 
     
     def callback_global_param(self, future):

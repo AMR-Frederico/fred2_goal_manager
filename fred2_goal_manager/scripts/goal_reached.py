@@ -4,17 +4,15 @@ import rclpy
 
 from rclpy.node import Node
 
-import os
 import sys
-import yaml
 import rclpy
 import threading
 
 from typing import List, Optional
 
-from rclpy.node import Node
 from rclpy.context import Context 
-from rclpy.parameter import Parameter
+from rclpy.node import Node, ParameterDescriptor
+from rclpy.parameter import Parameter, ParameterType
 from rclpy.qos import QoSPresetProfiles, QoSProfile, QoSHistoryPolicy, QoSLivelinessPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 from rcl_interfaces.msg import SetParametersResult
@@ -26,14 +24,8 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose, PoseStamped, PoseWithCovarianceStamped
 from std_msgs.msg import Bool, Int16
 
-# Parameters file (yaml)
-node_path = '/home/ubuntu/ros2_ws/src/fred2_goal_manager/conf/goal_manager.yaml'
-node_group = 'goal_reached'
-
 
 debug_mode = '--debug' in sys.argv
-
-
 
 
 class goal_reached(Node): 
@@ -140,7 +132,7 @@ class goal_reached(Node):
 
 
 
-        self.load_params(node_path, node_group)
+        self.load_params()
         self.get_params()
 
 
@@ -154,14 +146,14 @@ class goal_reached(Node):
             self.get_logger().info(f"Parameter '{param.name}' changed to: {param.value}")
 
 
-
         if param.name == 'robot_in_goal_tolerence':
             self.ROBOT_IN_GOAL_TOLERANCE = param.value
 
         if param.name == 'debug': 
             self.DEBUG = param.value
 
-
+        if param.name =='unit_test': 
+            self.UNIT_TEST = param.value
     
 
 
@@ -169,43 +161,49 @@ class goal_reached(Node):
 
 
 
-
-
-    def load_params(self, path, group): 
-        param_path = os.path.expanduser(path)
-
-        with open(param_path, 'r') as params_list: 
-            params = yaml.safe_load(params_list)
-        
-        # Get the params inside the specified group
-        params = params.get(group, {})
-
-        # Declare parameters with values from the YAML file
-        for param_name, param_value in params.items():
-            # Adjust parameter name to lowercase
-            param_name_lower = param_name.lower()
-            self.declare_parameter(param_name_lower, param_value)
-            self.get_logger().info(f'{param_name_lower}: {param_value}')
-
+    def load_params(self):
+        # Declare parameters related to goal-reaching tolerances and debugging/testing
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('robot_in_goal_tolerance', None, ParameterDescriptor(
+                    description='Tolerance for determining if the robot has reached its goal, in meters',
+                    type=ParameterType.PARAMETER_DOUBLE)),
+                ('debug', None, ParameterDescriptor(
+                    description='Enable debug prints for troubleshooting',
+                    type=ParameterType.PARAMETER_BOOL)),
+                ('unit_test', None, ParameterDescriptor(
+                    description='Allow the node to run isolated for unit testing',
+                    type=ParameterType.PARAMETER_BOOL))
+            ]
+        )
 
 
     def get_params(self):
         
-        self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerence').value
+        self.ROBOT_IN_GOAL_TOLERANCE = self.get_parameter('robot_in_goal_tolerance').value
+
         self.DEBUG = self.get_parameter('debug').value
+        self.UNIT_TEST = self.get_parameter('unit_test').value
 
 
 
-        # Get global params 
+        if self.UNIT_TEST: 
 
-        self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
-        self.client.wait_for_service()
+            self.robot_state = self.ROBOT_AUTONOMOUS
+        
+        else: 
 
-        request = GetParameters.Request()
-        request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+            # Get global params 
 
-        future = self.client.call_async(request)
-        future.add_done_callback(self.callback_global_param)
+            self.client = self.create_client(GetParameters, '/machine_states/main_robot/get_parameters')
+            self.client.wait_for_service()
+
+            request = GetParameters.Request()
+            request.names = ['manual', 'autonomous', 'in_goal', 'mission_completed', 'emergency']
+
+            future = self.client.call_async(request)
+            future.add_done_callback(self.callback_global_param)
 
 
     
@@ -352,6 +350,7 @@ class goal_reached(Node):
 
 
         if debug_mode or self.DEBUG: 
+
             self.get_logger().info(f'Ghost goal: {not self.waypoint_goal} | Accurancy level: {self.accuracy_level}')
             self.get_logger().info(f'Goal X: {self.goal.position.x} | Goal Y: {self.goal.position.y} ')
             self.get_logger().info(f'Delta X: {dx} | Delta Y: {dy}')

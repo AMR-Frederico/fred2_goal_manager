@@ -1,12 +1,21 @@
+import os
 import launch_ros
 import launch_ros.descriptions
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import TimerAction, LogInfo
+from ament_index_python.packages import get_package_share_directory
+
 
 
 def generate_launch_description():
+
+    config = os.path.join(
+        get_package_share_directory('fred2_goal_manager'),
+        'conf',
+        'goal_manager.yaml'
+        )
     
     goal_provider_node = launch_ros.actions.Node(
 
@@ -14,7 +23,7 @@ def generate_launch_description():
         executable = 'goal_provider.py',
         name = 'goal_provider',
         output = 'screen',
-        parameters=[{'use_sim_time': False}]
+        parameters=[config]
 
     )
 
@@ -25,7 +34,7 @@ def generate_launch_description():
         executable = 'goal_reached.py',
         name = 'goal_reached',
         output = 'screen',
-        parameters=[{'use_sim_time': False}]
+        parameters=[config]
 
     )
 
