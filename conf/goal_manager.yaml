@@ -6,21 +6,35 @@
 /goal_manager/goal_provider:
   ros__parameters:
 
-    frame_id: 'odom'
+    frame_id: 'odom'                
 
-    goals: '[[0.0, 1.0, 1.0],
-             [1.0, 1.0, 1.0]]'
+    goals: '[[5.0, 10.0, 1.0],
+             [9.0, 10.0, 0.0]]'
 
-    debug: True                   # Enable debug prints for troubleshooting
-    unit_test: True               # Allow the node to run isolated for unit testing
+    debug: True                    # Enable debug prints for troubleshooting
+    unit_test: False               # Allow the node to run isolated for unit testing
     use_sim_time: False
+    frequency: 1                   # Node frequency 
+
+
+################################################################################################################ 
+########### GOAL REACHED
+################################################################################################################
 
 
 /goal_manager/goal_reached:
   ros__parameters:
 
-    robot_in_goal_tolerance: 0.3  # Tolerance for determining if the robot has reached its goal, in meters
+    # Tolerance for determining if the robot has reached its GHOST goal, in meters
+    high_accuracy: 0.15
+    normal_accuracy: 0.30
+    low_accuracy: 0.60
 
-    debug: True                   # Enable debug prints for troubleshooting
-    unit_test: True               # Allow the node to run isolated for unit testing
+     # Tolerance for determining if the robot has reached its WAYPOINT goal, in meters
+    waypoint_goal_tolerance: 0.30  
+
+    debug: False                   # Enable debug prints for troubleshooting
+    unit_test: False               # Allow the node to run isolated for unit testing
     use_sim_time: False
+    frequency: 10 
+
