@@ -23,22 +23,22 @@ debug_mode = '--debug' in sys.argv
 
 class goal_provider(Node): 
     
-    goal_reached = False
+    goal_reached = False                # Indicates if the goal has been reached
     
     goals = []
-    current_index = 0
+    current_index = 0                   # Index of the current goal in the list of goals
 
-    current_goal = PoseStamped()
+    current_goal = PoseStamped()        # PoseStamped message representing the current goal
 
-    in_last_goal = Bool()
+    in_last_goal = Bool()               # Boolean indicating whether the robot is in the last goal
 
-    last_goal_reached = False
+    last_goal_reached = False           # Indicates if the last goal has been reached
 
-    goal_reached = False
+    goal_reached = False                # Indicates if a goal has been reached
 
-    reset_goals = False
+    reset_goals = False                 # Indicates if goals need to be reset
 
-    robot_state = 0
+    robot_state = -1                     # Current state of the robot
 
     # starts with randon value 
     ROBOT_MANUAL = 1000
@@ -72,58 +72,68 @@ class goal_provider(Node):
         # Load parameters
         self.load_params()
         self.get_params()
+        self.add_on_set_parameters_callback(self.parameters_callback)
+
+        self.quality_protocol()
+        self.setup_publishers()
+        self.setup_subscribers()
 
 
-        # quality protocol -> the node can't lose any message 
-        qos_profile = QoSProfile(
-            reliability=QoSReliabilityPolicy.RELIABLE, 
-            durability= QoSDurabilityPolicy.VOLATILE,
-            history=QoSHistoryPolicy.KEEP_LAST, 
-            depth=10, 
-            liveliness=QoSLivelinessPolicy.AUTOMATIC
+
+    def quality_protocol(self):
+
+        self.qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE,  # Set the reliability policy to RELIABLE, ensuring reliable message delivery
+            durability= QoSDurabilityPolicy.VOLATILE,   # Set the durability policy to VOLATILE, indicating messages are not stored persistently
+            history=QoSHistoryPolicy.KEEP_LAST,         # Set the history policy to KEEP_LAST, storing a limited number of past messages
+            depth=10,                                   # Set the depth of the history buffer to 10, specifying the number of stored past messages
+            liveliness=QoSLivelinessPolicy.AUTOMATIC    # Set the liveliness policy to AUTOMATIC, allowing automatic management of liveliness
             
         )
 
 
+
+    def setup_subscribers(self):
+
+        # ------ Checks if the robot reached the goal
         self.create_subscription(Bool, 
                                  'goal/reached', 
                                  self.goalReached_callback, 
-                                 qos_profile)
+                                 self.qos_profile)
         
-
+        # ------- Request for reset odometry 
         self.create_subscription(Bool, 
                                  '/odom/reset', 
                                  self.reset_callback, 
-                                 qos_profile)
+                                 self.qos_profile)
         
-
+        # ------- Current robot state 
         self.create_subscription(Int16, 
                                  '/machine_states/robot_state',
                                  self.robotState_callback, 
-                                 qos_profile)
+                                 self.qos_profile)
 
+    def setup_publishers(self):
 
+        # ------- For visualization, publishes all the goals 
         self.goals_pub = self.create_publisher(PoseArray, 
                                                'goals', 
-                                               qos_profile)
+                                               self.qos_profile)
 
-
+        # ------- Indicates the current goal 
         self.goalCurrent_pub = self.create_publisher(PoseStamped, 
                                                      'goal/current', 
-                                                     qos_profile)
+                                                     self.qos_profile)
 
-
+        # ------- Indicates when the robot reaches the laste goal 
         self.inLastGoal_pub = self.create_publisher(Bool, 
                                                     'robot/in_last_goal', 
-                                                    qos_profile)
+                                                    self.qos_profile)
 
 
-        self.add_on_set_parameters_callback(self.parameters_callback)
-
-        
     
 
-    # this function update the paramets value changed by ros2 param set
+    # updates the parameters when they are changed by the command line
     def parameters_callback(self, params):  
         
         for param in params:
@@ -145,27 +155,31 @@ class goal_provider(Node):
         if param.name == 'unit_test': 
             self.UNIT_TEST = param.value
 
+        
+        if param.name == 'frequency': 
+            self.FREQUENCY = param.value 
+
 
         return SetParametersResult(successful=True)
 
 
 
+    # Get robot current state 
     def robotState_callback(self, msg): 
 
         self.robot_state = msg.data
 
 
-
-
+    # Main function to publish goals and current goal
     def main(self): 
         
         #### Publish goals array 
-        
         goals_pose = PoseArray()
         
         goals_pose.header.stamp = self.get_clock().now().to_msg()
         goals_pose.header.frame_id = self.FRAME_ID
 
+         # Add each goal to the pose array
         for goal_values in self.goals:
             
             x, y, theta = goal_values
@@ -182,8 +196,7 @@ class goal_provider(Node):
 
     
 
-        ##### Publish current goal 
-
+        # Publish goals array and current goal
         self.goals_pub.publish(goals_pose)
         self.goalCurrent_pub.publish(self.current_goal)
 
@@ -206,13 +219,14 @@ class goal_provider(Node):
 
     def goalReached_callback(self, current_status):
         
-
+        # Update the status of whether a goal has been reached
         self.goal_reached = current_status.data
 
 
+        # Check if a new goal needs to be set       
         if (self.goal_reached > self.last_goal_reached) and self.robot_state == self.ROBOT_AUTONOMOUS:
-
             
+            # Check if the current goal index is less than the total number of goals
             if self.current_index < (len(self.goals) - 1):
                 
                 self.in_last_goal.data = False
@@ -221,18 +235,17 @@ class goal_provider(Node):
 
                 self.get_logger().info(f'Goal index changed: {self.current_index}')
 
-
-                
+        # Check if the current goal is the last goal
         if self.current_index == len(self.goals) - 1:
             
-            self.in_last_goal.data = True
+            self.in_last_goal.data = True                       # Set the robot to be in the last goal
             self.get_logger().warn('Heading to last goal!!!')
 
-
+        # Publish the status of whether the robot is in the last goal
         self.inLastGoal_pub.publish(self.in_last_goal)
+        
+        # Update the last goal reached status
         self.last_goal_reached = self.goal_reached
-
-
 
 
     
@@ -240,13 +253,13 @@ class goal_provider(Node):
         
         self.reset_goals = reset_msg.data
 
+        # Check if goals need to be reset
         if self.reset_goals: 
             
-            self.current_index = 0
-            self.in_last_goal.data = False
-            self.inLastGoal_pub.publish(self.in_last_goal)
+            self.current_index = 0                               # Reset the current goal index to the first goal
+            self.in_last_goal.data = False                       # Set the robot to not be in the last goal
+            self.inLastGoal_pub.publish(self.in_last_goal)       # Publish the updated status of whether the robot is in the last goal
     
-
 
     def load_params(self):
 
@@ -255,29 +268,45 @@ class goal_provider(Node):
             namespace='',
             
             parameters=[
-                ('frame_id', None, ParameterDescriptor(
-                    description='The frame of reference for the goals',
-                    type=ParameterType.PARAMETER_STRING)),
-                ('goals', None, ParameterDescriptor(
-                    description='List of goals, each as [x, y, theta]',
-                    type=ParameterType.PARAMETER_STRING)),
-                ('debug', None, ParameterDescriptor(
-                    description='Enable debug prints for troubleshooting',
-                    type=ParameterType.PARAMETER_BOOL)),
-                ('unit_test', None, ParameterDescriptor(
-                    description='Allow the node to run isolated for unit testing',
-                    type=ParameterType.PARAMETER_BOOL))
+                ('frame_id', None, 
+                    ParameterDescriptor(
+                        description='The frame of reference for the goals',
+                        type=ParameterType.PARAMETER_STRING)),
+
+                ('goals', None, 
+                    ParameterDescriptor(
+                        description='List of goals, each as [x, y, theta]',
+                        type=ParameterType.PARAMETER_STRING)),
+
+                ('debug', None, 
+                    ParameterDescriptor(
+                        description='Enable debug prints for troubleshooting',
+                        type=ParameterType.PARAMETER_BOOL)),
+                        
+                ('unit_test', None, 
+                    ParameterDescriptor(
+                        description='Allow the node to run isolated for unit testing',
+                        type=ParameterType.PARAMETER_BOOL)),
+                
+                ('frequency', None, 
+                    ParameterDescriptor(
+                        description='Node frequency', 
+                        type=ParameterType.PARAMETER_INTEGER)),
             ]
         )
 
 
     def get_params(self):
+        
         # Fetch the parameters
-        self.FRAME_ID = self.get_parameter('frame_id').get_parameter_value().string_value
-        goals_str = self.get_parameter('goals').get_parameter_value().string_value
-        self.DEBUG = self.get_parameter('debug').get_parameter_value().bool_value
-        self.UNIT_TEST = self.get_parameter('unit_test').get_parameter_value().bool_value
+        self.FRAME_ID = self.get_parameter('frame_id').value
+        self.DEBUG = self.get_parameter('debug').value
+        self.UNIT_TEST = self.get_parameter('unit_test').value
+        self.FREQUENCY = self.get_parameter('frequency').value
 
+        # Get goals as a string 
+        goals_str = self.get_parameter('goals').value
+        
         # Decode the JSON string to get the actual list structure for goals
         self.goals = json.loads(goals_str)
 
@@ -345,7 +374,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
-    rate = node.create_rate(7)
+    rate = node.create_rate(node.FREQUENCY)
 
     try: 
         while rclpy.ok(): 
