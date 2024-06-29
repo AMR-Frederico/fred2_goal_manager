@@ -12,7 +12,7 @@
              [9.0, 10.0, 0.0]]'
 
     debug: True                    # Enable debug prints for troubleshooting
-    use_global_param: False               # Allow the node to run isolated for unit testing
+    use_global_param: True               # Allow the node to run isolated for unit testing
     use_sim_time: False
     frequency: 1                   # Node frequency 
 
@@ -34,7 +34,7 @@
     waypoint_goal_tolerance: 0.30  
 
     debug: True                   # Enable debug prints for troubleshooting
-    use_global_param: False               # Allow the node to run isolated for unit testing
+    use_global_param: True               # Allow the node to run isolated for unit testing
     use_sim_time: False
     frequency: 1 
 
