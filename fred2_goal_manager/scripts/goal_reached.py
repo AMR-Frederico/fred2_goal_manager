@@ -53,6 +53,11 @@ class goal_reached(Node):
     ROBOT_INIT = 1000
     ROBOT_EMERGENCY = 1000
 
+    # Ghost goal tolerance 
+    HIGH_TOLERANCE = 3.0 
+    NORMAL_TOLERANCE = 2.0 
+    LOW_TOLERANCE = 1.0
+
 
 
     def __init__(self, 
@@ -93,7 +98,7 @@ class goal_reached(Node):
         self.robot_in_goal.data = False
         self.mission_completed.data = False
         self.sinalization_msg.data = False
-
+        self.waypoint_goal = (self.goal.position.z == 0.0)
 
         # Check if the robot is in autonomous mode
         if self.robot_state == self.ROBOT_AUTONOMOUS: 
@@ -113,7 +118,7 @@ class goal_reached(Node):
                 
 
                 # Check if the robot has reached the final waypoint goal
-                elif (linear_error < self.WAYPOINT_GOAL_TOLERANCE) and self.last_goal: 
+                elif (self.linear_error < self.WAYPOINT_GOAL_TOLERANCE) and self.last_goal: 
                     
                     self.mission_completed.data = True 
 
@@ -121,13 +126,28 @@ class goal_reached(Node):
                     
 
             else:   # for ghost goal 
-                
+
                 # Disable the LED sinalization
                 self.sinalization_msg.data = False 
                 self.led_on.publish(self.sinalization_msg)
 
+                goal_accurancy = self.goal.position.z
+
+                if goal_accurancy == self.HIGH_TOLERANCE: 
+                        
+                    self.tolerance = self.HIGH_ACCURACY_TOLERANCE
+                
+                elif goal_accurancy == self.NORMAL_TOLERANCE: 
+                    
+                    self.tolerance = self.NORMAL_ACCURACY_TOLERANCE 
+                
+                elif goal_accurancy == self.LOW_TOLERANCE: 
+                        
+                    self.tolerance = self.LOW_ACCURACY_TOLERANCE
+
+
                 # Check if the goal is a ghost goal
-                if (linear_error < self.ghost_goal_tolerance): 
+                if (self.linear_error < self.tolerance): 
                     
                     self.robot_in_goal.data = True
 

@@ -14,5 +14,5 @@ def goal_reached(node: Node):
 
     node.get_logger().info(f'Goal X: {node.goal.position.x} | Goal Y: {node.goal.position.y} | Robo in goal: {node.robot_in_goal.data}')
     node.get_logger().info(f'Delta X: {node.dx} | Delta Y: {node.dy} | Linear error: {node.linear_error}')
-    node.get_logger().info(f'Ghost goal: {not node.waypoint_goal} | Tolerance: {node.ghost_goal_tolerance}')
+    node.get_logger().info(f'Ghost goal: {not node.waypoint_goal} | Tolerance: {node.tolerance}')
     node.get_logger().info(f'Waypoint goal: {node.waypoint_goal} | Tolerance: {node.WAYPOINT_GOAL_TOLERANCE}\n')

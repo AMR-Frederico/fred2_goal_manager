@@ -94,8 +94,9 @@ class goal_provider(Node):
 
             pose_msg.position.x = x 
             pose_msg.position.y = y
-            
-            pose_msg.orientation.z = theta
+            pose_msg.position.z = theta
+
+            pose_msg.orientation.z = 0.0
             pose_msg.orientation.w = 1.0
 
             goals_pose.poses.append(pose_msg)
