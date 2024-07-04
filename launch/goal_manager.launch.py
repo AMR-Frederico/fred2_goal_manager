@@ -42,11 +42,11 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        # TimerAction(period= 1.5, actions= [
+        TimerAction(period= 1.5, actions= [
             
-        #     LogInfo(msg=' ######################### LAUNCHING GOAL PROVIDER #################################### '), 
-        #     goal_provider_node
-        # ]), 
+            LogInfo(msg=' ######################### LAUNCHING GOAL PROVIDER #################################### '), 
+            goal_provider_node
+        ]), 
 
         TimerAction(period= 1.5, actions= [
 
