@@ -107,7 +107,7 @@ def goalCurrent_callback(node:Node, goal_msg):
     # Update the goal position based on the received message
     node.goal.position.x = goal_msg.pose.position.x 
     node.goal.position.y = goal_msg.pose.position.y
-
+    node.goal.orientation.z = goal_msg.pose.orientation.z
 
     # Determine the accuracy level and whether the goal is a waypoint based on the orientation
     if goal_msg.pose.orientation.z == 1.0: 

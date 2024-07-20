@@ -44,7 +44,7 @@ class goal_reached(Node):
 
     waypoint_goal = False                   # Flag to indicate if the goal is a waypoint
     
-    ghost_goal_tolerance = 0.0                    # Accuracy level for reaching the goal
+    tolerance = 0.3                    # Accuracy level for reaching the goal
 
 
     # starts with randon value 
@@ -98,7 +98,7 @@ class goal_reached(Node):
         self.robot_in_goal.data = False
         self.mission_completed.data = False
         self.sinalization_msg.data = False
-        self.waypoint_goal = (self.goal.position.z == 0.0)
+        self.waypoint_goal = (self.goal.orientation.z == 0.0)
 
         # Check if the robot is in autonomous mode
         if self.robot_state == self.ROBOT_AUTONOMOUS: 
@@ -131,7 +131,8 @@ class goal_reached(Node):
                 self.sinalization_msg.data = False 
                 self.led_on.publish(self.sinalization_msg)
 
-                goal_accurancy = self.goal.position.z
+                goal_accurancy = self.goal.orientation.z
+                self.get_logger().info(f'{goal_accurancy}')
 
                 if goal_accurancy == self.HIGH_TOLERANCE: 
                         
@@ -176,7 +177,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     thread.start()
 
-    rate = node.create_rate(node.FREQUENCY)
+    rate = node.create_rate(10)
 
     try: 
         while rclpy.ok(): 
