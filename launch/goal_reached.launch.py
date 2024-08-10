@@ -16,16 +16,6 @@ def generate_launch_description():
         'conf',
         'goal_manager.yaml'
         )
-    
-    goal_provider_node = launch_ros.actions.Node(
-
-        package = 'fred2_goal_manager',
-        executable = 'goal_provider.py',
-        name = 'goal_provider',
-        output = 'screen',
-        parameters=[config]
-
-    )
 
 
     goal_reached_node = launch_ros.actions.Node(
@@ -41,12 +31,6 @@ def generate_launch_description():
 
 
     return LaunchDescription([
-
-        TimerAction(period= 1.5, actions= [
-            
-            LogInfo(msg=' ######################### LAUNCHING GOAL PROVIDER #################################### '), 
-            goal_provider_node
-        ]), 
 
         TimerAction(period= 1.5, actions= [
 
