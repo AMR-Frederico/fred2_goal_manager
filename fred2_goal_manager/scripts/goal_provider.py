@@ -11,8 +11,10 @@ import fred2_goal_manager.scripts.qos as qos
 import fred2_goal_manager.scripts.subscribers as subscribers
 
 from typing import List
+
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.signals import SignalHandlerOptions
 
 from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from std_msgs.msg import Bool
@@ -162,7 +164,7 @@ class goal_provider(Node):
 
 if __name__ == '__main__': 
     
-    rclpy.init()
+    rclpy.init(args=None, signal_handler_options=SignalHandlerOptions.NO)
     
     node = goal_provider('goal_provider', 
                          namespace='goal_manager', 
@@ -177,9 +179,13 @@ if __name__ == '__main__':
 
     try: 
         while rclpy.ok(): 
+
             node.main()
             rate.sleep()
+
     except KeyboardInterrupt:
+
+        node.get_logger().warn(' ------------------------------------ DEACTIVATING NODE --------------------------------------')
         pass
 
     rclpy.shutdown()

@@ -15,6 +15,7 @@ from typing import List
 
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.signals import SignalHandlerOptions
 
 from math import hypot
 
@@ -168,7 +169,9 @@ class goal_reached(Node):
 
 
 if __name__ == '__main__': 
-    rclpy.init()
+
+    rclpy.init(args = None, signal_handler_options = SignalHandlerOptions.NO)
+
     node = goal_reached(
         node_name='goal_reached', 
         namespace='goal_manager', 
@@ -184,6 +187,8 @@ if __name__ == '__main__':
             node.main()
             rate.sleep()
     except KeyboardInterrupt:
+
+        node.get_logger().warn(' ------------------------------------ DEACTIVATING NODE --------------------------------------')
         pass
 
     rclpy.shutdown()
